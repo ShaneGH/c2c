@@ -91,13 +91,16 @@ namespace code2code
             return $"{name} = {Generate(type, value, customConvertors)},";
         }
 
-        public static string GetTypeName(Type t, Dictionary)
+        public static string GetTypeName(Type t)
         {
+            if (t.DeclaringType != null && t.DeclaringType.IsGenericType)
+                throw new NotImplementedException();
+
             var nested = t.DeclaringType != null
                 ? GetTypeName(t.DeclaringType) + "."
                 : "";
 
-                t.IsGenericParameter
+             //   t.IsGenericParameter
 
             var ns = nested == "" 
                 ? t.Namespace + "."

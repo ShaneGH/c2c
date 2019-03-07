@@ -1,3 +1,4 @@
+using System;
 using code2code;
 using NUnit.Framework;
 
@@ -26,7 +27,8 @@ namespace Tests
         [Test]
         public void NestedGeneric1()
         {
-            Assert.AreEqual("Tests.MyTest3<System.String>.MyTest4<int>", Cd2Cd.GetTypeName(typeof(MyTest3<string>.MyTest4<int>)));
+            Assert.Throws(typeof(NotImplementedException), () =>
+                Assert.AreEqual("Tests.MyTest3<System.String>.MyTest4<int>", Cd2Cd.GetTypeName(typeof(MyTest3<string>.MyTest4<int>))));
         }
 
         public class MyTest2
@@ -40,6 +42,9 @@ namespace Tests
 
     public class MyTest3<T>
     {
-        public class MyTest4<T> { }
+        public class MyTest4<U> 
+        {
+            public T Hi;
+        }
     }
 }
