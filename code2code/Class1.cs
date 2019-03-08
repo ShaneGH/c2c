@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -41,9 +42,9 @@ namespace code2code
             typeof(decimal?)
         };
 
-        public static string Generate<T>(T value, IEnumerable<ICustomConvertor> customConvertors)
+        public static string Generate<T>(T value, IEnumerable<ICustomConvertor> customConvertors = null)
         {
-            var convertors = customConvertors.ToDictionary(x => x.Type);
+            var convertors = customConvertors?.ToDictionary(x => x.Type) ?? new Dictionary<Type, ICustomConvertor>();
             if (!convertors.ContainsKey(typeof(string)))
                 convertors.Add(typeof(string), new StringConvertor());
             if (!convertors.ContainsKey(typeof(Guid)))
@@ -53,48 +54,65 @@ namespace code2code
             if (!convertors.ContainsKey(typeof(DateTime)))
                 convertors.Add(typeof(DateTime), new DateTimeConvertor());
 
-            return Generate(typeof(T), value, convertors, new Dictionary<Type, Type>());
+            return Generate(value, convertors, new Dictionary<Type, Type>());
         }
         
-        static string Generate(Type type, object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static string Generate(object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
         {
             if (value == null) return "null";
+            var type = value.GetType();
+
             if (customConvertors.TryGetValue(type, out var convertor))
                 return convertor.Convert(value);
 
             if (Primitives.Contains(type))
                 return value.ToString();
 
-            var constructor = type.GetConstructor(new Type[0]);
-            if (constructor == null)
-                throw new Exception("Your class must hace a default constructor");
+            if (!type.IsArray)
+            {
+                var constructor = type.GetConstructor(new Type[0]);
+                if (constructor == null)
+                    throw new Exception("Your class must hace a default constructor");
+            }
 
-            return $"new {GetTypeName(type, genericTypeParams)}\n{{\n{GenerateProperties(type, value, customConvertors, genericTypeParams)}\n}}";
+            return $"new {GetTypeName(type, genericTypeParams)}\n{{\n{GenerateProperties(value, customConvertors, genericTypeParams)}\n}}";
         }
 
-        static string GenerateProperties(Type type, object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static string GenerateProperties(object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
         {
+            if (value is IEnumerable values)
+                return GenerateValues(values, customConvertors,  genericTypeParams).JoinString("\n,");
+
+            var type = value.GetType();
             var props = type
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Select(x => (t: x.PropertyType, n: x.Name, v: x.GetMethod.Invoke(value, new object[0])))
+                .Select(x => (n: x.Name, v: x.GetMethod.Invoke(value, new object[0])))
                 .Concat(type
                     .GetFields(BindingFlags.Public | BindingFlags.Instance)
-                    .Select(x => (t: x.FieldType, n: x.Name, v: x.GetValue(value))));
+                    .Select(x => (n: x.Name, v: x.GetValue(value))));
 
             return props
-                .Select(p => GenerateProperty(p.t, p.n, p.v, customConvertors, genericTypeParams))
-                .JoinString("\n");
+                .Select(p => GenerateProperty(p.n, p.v, customConvertors, genericTypeParams))
+                .JoinString(",\n");
         }
 
-        static string GenerateProperty(Type type, string name, object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static IEnumerable<string> GenerateValues(IEnumerable values, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
         {
-            return $"{name} = {Generate(type, value, customConvertors, genericTypeParams)},";
+            foreach (var v in values)
+                yield return Generate(v, customConvertors, genericTypeParams);
+        }
+
+        static string GenerateProperty(string name, object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        {
+            return $"{name} = {Generate(value, customConvertors, genericTypeParams)}";
         }
 
         public static string GetTypeName(Type t) => GetTypeName(t, new Dictionary<Type, Type>());
 
         static string GetTypeName(Type t, Dictionary<Type, Type> genericTypeParams)
         {
+            // TODO: is generic stuff even needed?
+
             if (t.IsGenericParameter)
             {
                 if (!genericTypeParams.TryGetValue(t, out t))
@@ -166,7 +184,6 @@ namespace code2code
                 : "";
 
             return ns + nested + name + generics;
-
         }
     }
 
