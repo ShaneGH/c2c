@@ -37,6 +37,20 @@ namespace Tests.New
         {
             Assert.AreEqual("new Tests.New.ClassEnumerableProp1\n{\nVal = new System.String[]\n{\n\"aaa\"\n}\n}", Cd2Cd.Generate(new ClassEnumerableProp1{Val = new string[] { "aaa" }}));
         }
+        
+        [Test]
+        public void TestGenericField()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<System.Nullable<System.Int32>>\n{\nValll = null\n}", Cd2Cd.Generate(new GenericField<int?>{Valll = null}));
+        }
+        
+        [Test]
+        public void TestGenericField2()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<System.Nullable<System.Int32>>\n{\nValll = 5\n}", Cd2Cd.Generate(new GenericField<int?>{Valll = 5}));
+        }
+
+        
 
         
         
@@ -84,6 +98,11 @@ namespace Tests.New
     public class ClassStringField
     {
         public string Str;
+    }
+
+    public class GenericField<T>
+    {
+        public T Valll;
     }
 
     public class ClassStringProp
