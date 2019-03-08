@@ -27,8 +27,8 @@ namespace Tests
         [Test]
         public void NestedGeneric1()
         {
-            Assert.Throws(typeof(NotImplementedException), () =>
-                Assert.AreEqual("Tests.MyTest3<System.String>.MyTest4<int>", Cd2Cd.GetTypeName(typeof(MyTest3<string>.MyTest4<int>))));
+           // Assert.Throws(typeof(NotImplementedException), () =>
+                Assert.AreEqual("Tests.MyTest3<System.String>.MyTest4<System.Int32>", Cd2Cd.GetTypeName(typeof(MyTest3<string>.MyTest4<int>)));//);
         }
 
         public class MyTest2
