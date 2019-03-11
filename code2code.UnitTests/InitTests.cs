@@ -49,6 +49,24 @@ namespace Tests.New
         {
             Assert.AreEqual("new Tests.New.GenericField<System.Nullable<System.Int32>>\n{\nValll = 5\n}", Cd2Cd.Generate(new GenericField<int?>{Valll = 5}));
         }
+        
+        [Test]
+        public void TestFromJson()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<System.Nullable<System.Int32>>\n{\nValll = 5\n}", Cd2Cd.GenerateFromJson<GenericField<int?>>("{\"Valll\":5}"));
+        }
+        
+        [Test]
+        public void TestFromJsonWithNull()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<System.Nullable<System.Int32>>\n{\nValll = null\n}", Cd2Cd.GenerateFromJson<GenericField<int?>>("{\"Valll\":null}"));
+        }
+        
+        [Test]
+        public void TestFromJsonWithIEnumerable()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<System.Collections.Generic.IEnumerable<System.Int32>>\n{\nValll = new System.Collections.Generic.List<System.Int32>\n{\n5\n}\n}", Cd2Cd.GenerateFromJson<GenericField<IEnumerable<int>>>("{\"Valll\":[5]}"));
+        }
 
         
 

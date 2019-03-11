@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Newtonsoft.Json;
 
 namespace code2code
 {
@@ -41,6 +42,11 @@ namespace code2code
             typeof(double?),
             typeof(decimal?)
         };
+
+        public static string GenerateFromJson<T>(string value, IEnumerable<ICustomConvertor> customConvertors = null)
+        {
+            return Generate(JsonConvert.DeserializeObject<T>(value), customConvertors);
+        }
 
         public static string Generate<T>(T value, IEnumerable<ICustomConvertor> customConvertors = null)
         {
