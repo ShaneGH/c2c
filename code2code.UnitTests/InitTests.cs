@@ -67,50 +67,28 @@ namespace Tests.New
         {
             Assert.AreEqual("new Tests.New.GenericField<System.Collections.Generic.IEnumerable<System.Int32>>\n{\nValll = new System.Collections.Generic.List<System.Int32>\n{\n5\n}\n}", Cd2Cd.GenerateFromJson<GenericField<IEnumerable<int>>>("{\"Valll\":[5]}"));
         }
-
         
-
+        [Test]
+        public void TestFromJsonWithEnumAsInt()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<Tests.New.AnEnum>\n{\nValll = (Tests.New.AnEnum)1\n}", Cd2Cd.GenerateFromJson<GenericField<AnEnum>>("{\"Valll\":1}"));
+        }
         
-        
-        // [Test]
-        // public void NestedClass()
-        // {
-        //     Assert.AreEqual("new Tests.New.InitTests.MyTest2", Cd2Cd.Generate(new MyTest2()));
-        // }
-        
-        // [Test]
-        // public void SimpleGeneric()
-        // {
-        //     Assert.AreEqual("Tests.MyTest3<System.String>", Cd2Cd.GetTypeName(typeof(MyTest3<string>)));
-        // }
-        
-        // [Test]
-        // public void NestedGeneric1()
-        // {
-        //     Assert.AreEqual("Tests.MyTest3<System.String>.MyTest4<System.Int32>", Cd2Cd.GetTypeName(typeof(MyTest3<string>.MyTest4<int>)));
-        // }
-        
-        // [Test]
-        // public void Lists()
-        // {
-        //     Assert.AreEqual("System.Collections.Generic.List<System.String>", Cd2Cd.GetTypeName(typeof(List<string>)));
-        // }
-        
-        // [Test]
-        // public void IEnumerableWithoutResolver()
-        // {
-        //     Assert.AreEqual("System.Collections.Generic.IEnumerable<System.String>", Cd2Cd.GetTypeName(typeof(IEnumerable<string>)));
-        // }
-        
-        // [Test]
-        // public void IEnumerableWithResolver()
-        // {
-        //     Assert.AreEqual("System.Collections.Generic.List<System.String>", Cd2Cd.GetTypeNameWithInterfaceResolution(typeof(IEnumerable<string>), new Dictionary<Type, Type> { { typeof(IEnumerable<>), typeof(List<>) } }));
-        // }
+        [Test]
+        public void TestFromJsonWithEnumAsByte()
+        {
+            Assert.AreEqual("new Tests.New.GenericField<Tests.New.AnEnum>\n{\nValll = (Tests.New.AnEnum)1\n}", Cd2Cd.GenerateFromJson<GenericField<AnEnum>>("{\"Valll\":1}"));
+        }
 
         public class MyTest2
         {
         }
+    }
+
+    public enum AnEnum
+    {
+        Value1 = 1,
+        Value2 = 2,
     }
 
     public class ClassStringField

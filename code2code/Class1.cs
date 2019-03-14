@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace code2code
 {
-    public interface ICustomConvertor
+    public interface ICustomConverter
     {
         Type Type { get; }
         string Convert(object value);
@@ -19,7 +19,6 @@ namespace code2code
         {
             typeof(byte),
             typeof(sbyte),
-            typeof(bool),
             typeof(short),
             typeof(int),
             typeof(long),
@@ -31,7 +30,6 @@ namespace code2code
             typeof(decimal),
             typeof(byte?),
             typeof(sbyte?),
-            typeof(bool?),
             typeof(short?),
             typeof(int?),
             typeof(long?),
@@ -41,35 +39,48 @@ namespace code2code
             typeof(float?),
             typeof(double?),
             typeof(decimal?)
+
+            // note, bool is missing (has custom converter)
         };
 
-        public static string GenerateFromJson<T>(string value, IEnumerable<ICustomConvertor> customConvertors = null)
+        public static string GenerateFromJson<T>(string value, IEnumerable<ICustomConverter> customConverters = null)
         {
-            return Generate(JsonConvert.DeserializeObject<T>(value), customConvertors);
+            return Generate(JsonConvert.DeserializeObject<T>(value), customConverters);
         }
 
-        public static string Generate<T>(T value, IEnumerable<ICustomConvertor> customConvertors = null)
+        public static string Generate<T>(T value, IEnumerable<ICustomConverter> customConverters = null)
         {
-            var convertors = customConvertors?.ToDictionary(x => x.Type) ?? new Dictionary<Type, ICustomConvertor>();
-            if (!convertors.ContainsKey(typeof(string)))
-                convertors.Add(typeof(string), new StringConvertor());
-            if (!convertors.ContainsKey(typeof(Guid)))
-                convertors.Add(typeof(Guid), new GuidConvertor());
-            if (!convertors.ContainsKey(typeof(char)))
-                convertors.Add(typeof(char), new CharConvertor());
-            if (!convertors.ContainsKey(typeof(DateTime)))
-                convertors.Add(typeof(DateTime), new DateTimeConvertor());
+            var converters = customConverters?.ToDictionary(x => x.Type) ?? new Dictionary<Type, ICustomConverter>();
+            if (!converters.ContainsKey(typeof(string)))
+                converters.Add(typeof(string), new StringConverter());
+            if (!converters.ContainsKey(typeof(Guid)))
+                converters.Add(typeof(Guid), new GuidConverter());
+            if (!converters.ContainsKey(typeof(char)))
+                converters.Add(typeof(char), new CharConverter());
+            if (!converters.ContainsKey(typeof(DateTime)))
+                converters.Add(typeof(DateTime), new DateTimeConverter());
+            if (!converters.ContainsKey(typeof(bool)))
+                converters.Add(typeof(bool), new BoolConverter());
+            if (!converters.ContainsKey(typeof(bool?)))
+                converters.Add(typeof(bool?), new NullableBoolConverter());
 
-            return Generate(value, convertors, new Dictionary<Type, Type>());
+
+            return Generate(value, converters, new Dictionary<Type, Type>());
         }
         
-        static string Generate(object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static string Generate(object value, Dictionary<Type, ICustomConverter> customConverters, Dictionary<Type, Type> genericTypeParams)
         {
             if (value == null) return "null";
             var type = value.GetType();
 
-            if (customConvertors.TryGetValue(type, out var convertor))
-                return convertor.Convert(value);
+            if (type.IsEnum)
+            {
+                value = Convert.ChangeType(value, typeof(int));
+                return $"({GetTypeName(type, genericTypeParams)})" + Generate(value, customConverters, genericTypeParams);
+            }
+
+            if (customConverters.TryGetValue(type, out var converter))
+                return converter.Convert(value);
 
             if (Primitives.Contains(type))
                 return value.ToString();
@@ -78,16 +89,16 @@ namespace code2code
             {
                 var constructor = type.GetConstructor(new Type[0]);
                 if (constructor == null)
-                    throw new Exception("Your class must hace a default constructor");
+                    throw new Exception($"Your class must have a default constructor: {type}. You probably need to add a custom converter.");
             }
 
-            return $"new {GetTypeName(type, genericTypeParams)}\n{{\n{GenerateProperties(value, customConvertors, genericTypeParams)}\n}}";
+            return $"new {GetTypeName(type, genericTypeParams)}\n{{\n{GenerateProperties(value, customConverters, genericTypeParams)}\n}}";
         }
 
-        static string GenerateProperties(object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static string GenerateProperties(object value, Dictionary<Type, ICustomConverter> customConverters, Dictionary<Type, Type> genericTypeParams)
         {
             if (value is IEnumerable values)
-                return GenerateValues(values, customConvertors,  genericTypeParams).JoinString("\n,");
+                return GenerateValues(values, customConverters,  genericTypeParams).JoinString("\n,");
 
             var type = value.GetType();
             var props = type
@@ -98,19 +109,19 @@ namespace code2code
                     .Select(x => (n: x.Name, v: x.GetValue(value))));
 
             return props
-                .Select(p => GenerateProperty(p.n, p.v, customConvertors, genericTypeParams))
+                .Select(p => GenerateProperty(p.n, p.v, customConverters, genericTypeParams))
                 .JoinString(",\n");
         }
 
-        static IEnumerable<string> GenerateValues(IEnumerable values, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static IEnumerable<string> GenerateValues(IEnumerable values, Dictionary<Type, ICustomConverter> customConverters, Dictionary<Type, Type> genericTypeParams)
         {
             foreach (var v in values)
-                yield return Generate(v, customConvertors, genericTypeParams);
+                yield return Generate(v, customConverters, genericTypeParams);
         }
 
-        static string GenerateProperty(string name, object value, Dictionary<Type, ICustomConvertor> customConvertors, Dictionary<Type, Type> genericTypeParams)
+        static string GenerateProperty(string name, object value, Dictionary<Type, ICustomConverter> customConverters, Dictionary<Type, Type> genericTypeParams)
         {
-            return $"{name} = {Generate(value, customConvertors, genericTypeParams)}";
+            return $"{name} = {Generate(value, customConverters, genericTypeParams)}";
         }
 
         public static string GetTypeName(Type t) => GetTypeName(t, new Dictionary<Type, Type>());
@@ -193,7 +204,7 @@ namespace code2code
         }
     }
 
-    class DateTimeConvertor : ICustomConvertor
+    class DateTimeConverter : ICustomConverter
     {
         public Type Type => typeof(DateTime);
 
@@ -204,21 +215,35 @@ namespace code2code
         }
     }
 
-    class GuidConvertor : ICustomConvertor
+    class GuidConverter : ICustomConverter
     {
         public Type Type => typeof(Guid);
 
         public string Convert(object value) => $"new System.Guid(\"{value.ToString()}\")";
     }
 
-    class StringConvertor : ICustomConvertor
+    class BoolConverter : ICustomConverter
+    {
+        public Type Type => typeof(bool);
+
+        public string Convert(object value) => value.ToString().ToLower();
+    }
+
+    class NullableBoolConverter : ICustomConverter
+    {
+        public Type Type => typeof(bool?);
+
+        public string Convert(object value) => value?.ToString().ToLower() ?? "null";
+    }
+
+    class StringConverter : ICustomConverter
     {
         public Type Type => typeof(string);
 
         public string Convert(object value) => $"\"{value.ToString()}\"";
     }
 
-    class CharConvertor : ICustomConvertor
+    class CharConverter : ICustomConverter
     {
         public Type Type => typeof(char);
 
